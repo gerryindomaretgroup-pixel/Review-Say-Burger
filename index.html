@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Review Say Burger</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
         body { font-family: 'Inter', sans-serif; background: #0f172a; min-height: 100vh; }
         
-        /* Burger Layers - Visualized with physical spacing */
         .layer-container {
             min-height: 300px;
             display: flex;
@@ -17,16 +17,7 @@
             align-items: center;
             padding: 20px 0;
         }
-
-        .layer { 
-            width: 80%; 
-            height: 24px; 
-            margin-bottom: 2px;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
-        
+        .layer { width: 80%; height: 24px; margin-bottom: 2px; border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.3s ease; }
         .bun-bottom { background: #d97706; border-radius: 0 0 40px 40px; height: 35px; }
         .bun-top { background: #d97706; border-radius: 40px 40px 10px 10px; height: 40px; }
         .beef-patty { background: #451a03; border-radius: 12px; }
@@ -41,7 +32,6 @@
         
         .pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        
         .shake { animation: shake 0.4s ease-in-out; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
     </style>
@@ -62,6 +52,55 @@
     </div>
 
     <script>
+        let audioInitialized = false;
+        let synth = null;
+        let bgLoop = null;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+            try {
+                await Tone.start();
+                synth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 1 }
+                }).toDestination();
+                
+                // Menambahkan musik latar yang lebih ceria dan menyenangkan
+                const synthBGM = new Tone.PolySynth(Tone.Synth, { 
+                    volume: -20,
+                    oscillator: { type: 'sine' }
+                }).toDestination();
+                
+                // Urutan chord yang lebih ceria (C - Am - F - G)
+                const progression = [
+                    ["C4", "E4", "G4"],
+                    ["A3", "C4", "E4"],
+                    ["F3", "A3", "C4"],
+                    ["G3", "B3", "D4"]
+                ];
+                
+                let count = 0;
+                bgLoop = new Tone.Loop((time) => {
+                    synthBGM.triggerAttackRelease(progression[count % progression.length], "4n", time);
+                    count++;
+                }, "4n").start(0);
+                
+                audioInitialized = true;
+            } catch (e) {
+                console.error("Audio initialization failed:", e);
+            }
+        }
+
+        function playClickSound() { 
+            try { if(synth) synth.triggerAttackRelease("C5", "32n"); } catch(e) {} 
+        }
+        function playSuccessSound() { 
+            try { if(synth) { synth.triggerAttackRelease("E5", "16n"); synth.triggerAttackRelease("G5", "16n", "+0.1"); } } catch(e) {} 
+        }
+        function playFailSound() { 
+            try { if(synth) { synth.triggerAttackRelease("Ab4", "16n"); synth.triggerAttackRelease("F4", "16n", "+0.1"); } } catch(e) {} 
+        }
+
         const INGREDIENTS = {
             'Bun Bawah': { style: 'bun-bottom', icon: '🍞' },
             'Beef Patty': { style: 'beef-patty', icon: '🥩' },
@@ -99,7 +138,8 @@
             `;
         }
 
-        function handleLogin() {
+        async function handleLogin() {
+            await initAudio();
             const name = document.getElementById('input-name').value;
             if(!name) return;
             state.userData = { name: name, nik: document.getElementById('input-nik').value };
@@ -120,6 +160,7 @@
         function startGame() {
             document.getElementById('main-header').classList.remove('hidden');
             document.getElementById('progress-container').classList.remove('hidden');
+            if (Tone.Transport.state !== 'started') Tone.Transport.start();
             renderGame();
         }
 
@@ -155,11 +196,16 @@
             const nextCorrect = recipe.layers[state.stack.length];
             
             if (layer === nextCorrect) {
+                playClickSound();
                 state.stack.push(layer);
                 state.hint = null;
                 renderGame();
-                if (state.stack.length === recipe.layers.length) setTimeout(() => showWinModal(recipe.name), 500);
+                if (state.stack.length === recipe.layers.length) {
+                    playSuccessSound();
+                    setTimeout(() => showWinModal(recipe.name), 500);
+                }
             } else {
+                playFailSound();
                 state.lives--;
                 state.hint = nextCorrect;
                 if (state.lives <= 0) renderGameOver();
