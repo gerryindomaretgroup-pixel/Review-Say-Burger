@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Say Burger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; min-height: 100vh; }
+        
+        /* Layer Styling */
+        .layer-container {
+            display: flex; flex-direction: column-reverse; align-items: center;
+            width: 100%; height: 350px; overflow-y: auto; justify-content: flex-start;
+            padding: 20px 0; background: #1e293b; border-radius: 16px; border: 1px solid #334155;
+        }
+
+        .layer { 
+            width: 70%; transition: all 0.3s ease; position: relative; margin-bottom: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        /* Spesifik Bentuk Bahan */
+        .bun-bottom { background: #d97706; height: 35px; border-radius: 0 0 50px 50px; }
+        .bun-top { background: #d97706; height: 45px; border-radius: 50px 50px 15px 15px; }
+        .beef-patty { background: #451a03; height: 28px; border-radius: 20px; }
+        .chicken-patty { background: #EC6530; height: 28px; border-radius: 20px; }
+        .crispy-chicken { background: #fb923c; height: 30px; border-radius: 15px; border: 2px dashed #92400e; }
+        .sausage { background: #7F2020; height: 22px; border-radius: 50px; width: 60%; }
+        .cheese { background: #fbbf24; height: 8px; border-radius: 4px; width: 75%; }
+        .pickle { background: #166534; height: 14px; border-radius: 10px; width: 40%; }
+        .coleslaw { background: #B331F1; height: 16px; border-radius: 10px; opacity: 0.9; }
+        .mayo { background: #FE7F2D; height: 12px; border-radius: 10px; }
+        .onion { background: #4F252E; height: 14px; border-radius: 10px; }
+        
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    </style>
+</head>
+<body class="text-white p-4 flex justify-center items-center min-h-screen">
+
+    <div id="game-app" class="max-w-sm w-full bg-slate-900 border border-slate-700 rounded-3xl p-6 shadow-2xl">
+        <header id="main-header" class="hidden flex justify-between items-center mb-6">
+            <h1 class="text-xs font-bold text-orange-400 tracking-widest uppercase">Review Say Burger</h1>
+            <div id="lives" class="text-lg font-bold">❤️ ❤️ ❤️</div>
+        </header>
+
+        <div id="progress-container" class="hidden w-full h-1 bg-slate-800 rounded-full mb-6">
+            <div id="progress-bar" class="h-full bg-orange-500 rounded-full w-0 transition-all duration-500"></div>
+        </div>
+
+        <div id="view-container"></div>
+    </div>
+
+    <script>
+        const INGREDIENTS = {
+            'Bun Bawah': { style: 'bun-bottom', icon: '🍞' },
+            'Beef Patty': { style: 'beef-patty', icon: '🥩' },
+            'Chicken Patty': { style: 'chicken-patty', icon: '🍗' },
+            'Crispy Boneless Chicken': { style: 'crispy-chicken', icon: '🧆' },
+            'Sosis Bratwurst': { style: 'sausage', icon: '🌭' },
+            'Cheese': { style: 'cheese', icon: '🧀' },
+            'Pickle': { style: 'pickle', icon: '🥒' },
+            'Coleslaw': { style: 'coleslaw', icon: '🥗' },
+            'Signature Mayo': { style: 'mayo', icon: '🧴' },
+            'Caramelized Onion': { style: 'onion', icon: '🧅' },
+            'Bun Atas': { style: 'bun-top', icon: '🥯' }
+        };
+
+        const ALL_RECIPES = [
+            { name: "Beef Cheese Burger", layers: ['Bun Bawah', 'Beef Patty', 'Cheese', 'Pickle', 'Coleslaw', 'Signature Mayo', 'Caramelized Onion', 'Bun Atas'] },
+            { name: "Beef Burger", layers: ['Bun Bawah', 'Beef Patty', 'Pickle', 'Signature Mayo', 'Caramelized Onion', 'Bun Atas'] },
+            { name: "Chicken Burger", layers: ['Bun Bawah', 'Chicken Patty', 'Coleslaw', 'Signature Mayo', 'Bun Atas'] },
+            { name: "Crispy Chicken Burger", layers: ['Bun Bawah', 'Crispy Boneless Chicken', 'Cheese', 'Coleslaw', 'Signature Mayo', 'Bun Atas'] },
+            { name: "Chicken Cheese Burger", layers: ['Bun Bawah', 'Chicken Patty', 'Cheese', 'Coleslaw', 'Signature Mayo', 'Bun Atas'] },
+            { name: "UFO Burger", layers: ['Bun Bawah', 'Coleslaw', 'Sosis Bratwurst', 'Caramelized Onion', 'Signature Mayo', 'Bun Atas'] }
+        ];
+
+        let state = { level: 0, lives: 3, stack: [], hint: null, userData: { name: '', nik: '' }, currentRecipes: [] };
+
+        function renderLogin() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">🍔</div>
+                    <h2 class="text-2xl font-bold mb-6">Review Say Burger</h2>
+                    <input type="text" id="input-name" placeholder="Nama Lengkap" class="w-full mb-3 bg-slate-800 p-3 rounded-xl border border-slate-700 text-sm">
+                    <input type="text" id="input-nik" placeholder="NIK" class="w-full mb-6 bg-slate-800 p-3 rounded-xl border border-slate-700 text-sm">
+                    <button onclick="handleLogin()" class="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-700 transition">Let's Make It</button>
+                </div>
+            `;
+        }
+
+        function handleLogin() {
+            state.userData = { name: document.getElementById('input-name').value, nik: document.getElementById('input-nik').value };
+            if(!state.userData.name) return;
+            state.currentRecipes = [...ALL_RECIPES].sort(() => 0.5 - Math.random()).slice(0, 5);
+            renderInstructions();
+        }
+
+        function renderInstructions() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center">
+                    <h2 class="text-xl font-bold text-orange-400 mb-4">Misi Anda</h2>
+                    <p class="text-slate-300 text-sm mb-6">Susun 5 burger sesuai SOP! <br> Anda memiliki 3 Life.</p>
+                    <button onclick="startGame()" class="w-full py-3 bg-green-600 rounded-xl font-bold">Mulai Memasak!</button>
+                </div>
+            `;
+        }
+
+        function startGame() {
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('progress-container').classList.remove('hidden');
+            renderGame();
+        }
+
+        function renderGame() {
+            const recipe = state.currentRecipes[state.level];
+            document.getElementById('progress-bar').style.width = ((state.level) / 5 * 100) + '%';
+            document.getElementById('lives').innerText = `Life: ${'❤️'.repeat(state.lives)}`;
+            
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center mb-4"><h2 class="text-lg font-bold text-orange-400">${recipe.name}</h2></div>
+                <div class="layer-container mb-6">
+                    ${state.stack.map(layer => `<div class="layer ${INGREDIENTS[layer].style} pop"></div>`).join('')}
+                </div>
+                
+                ${state.hint ? `
+                    <div class="mb-4 p-3 bg-red-900/30 border border-red-500 rounded-lg text-center animate-pulse">
+                        <p class="text-[10px] text-red-300 uppercase font-bold">Salah! Seharusnya pilih:</p>
+                        <p class="text-sm font-bold text-red-400">${state.hint}</p>
+                    </div>
+                ` : ''}
+
+                <div class="grid grid-cols-4 gap-2">
+                    ${Object.keys(INGREDIENTS).map(item => `
+                        <button onclick="handleInput('${item}')" class="bg-slate-800 p-2 rounded-lg text-[10px] flex flex-col items-center border border-slate-700 hover:border-orange-500 transition-all">
+                            <span class="text-lg">${INGREDIENTS[item].icon}</span>${item.split(' ')[0]}
+                        </button>`).join('')}
+                </div>
+            `;
+        }
+
+        function handleInput(layer) {
+            const recipe = state.currentRecipes[state.level];
+            const nextCorrect = recipe.layers[state.stack.length];
+            
+            if (layer === nextCorrect) {
+                state.stack.push(layer);
+                state.hint = null;
+                renderGame();
+                if (state.stack.length === recipe.layers.length) setTimeout(() => showWinModal(recipe.name), 500);
+            } else {
+                state.lives--;
+                state.hint = nextCorrect;
+                if (state.lives <= 0) renderGameOver();
+                else {
+                    document.querySelector('.layer-container').classList.add('shake');
+                    setTimeout(() => document.querySelector('.layer-container').classList.remove('shake'), 500);
+                    renderGame();
+                }
+            }
+        }
+
+        function renderGameOver() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center p-8 bg-slate-800 rounded-2xl border border-red-500">
+                    <h2 class="text-2xl font-bold text-red-500 mb-4">Gagal!</h2>
+                    <p class="text-slate-300 mb-6">Kehabisan Life!</p>
+                    <button onclick="retryLevel()" class="w-full py-3 bg-red-600 rounded-xl font-bold hover:bg-red-700">Coba Lagi Level Ini</button>
+                </div>
+            `;
+        }
+
+        function retryLevel() {
+            state.lives = 3;
+            state.stack = [];
+            state.hint = null;
+            renderGame();
+        }
+
+        function showWinModal(name) {
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center p-8 bg-slate-800 rounded-2xl border border-green-500">
+                    <h2 class="text-2xl font-bold text-green-400">Mantap!</h2>
+                    <p class="mb-6">${name} berhasil disusun!</p>
+                    <button onclick="nextLevel()" class="w-full py-3 bg-green-600 rounded-xl">Lanjut</button>
+                </div>
+            `;
+        }
+
+        function nextLevel() {
+            state.level++;
+            state.stack = [];
+            state.lives = 3;
+            state.hint = null;
+            if(state.level < 5) renderGame();
+            else renderSummary();
+        }
+
+        function renderSummary() {
+            document.getElementById('view-container').innerHTML = `
+                <div class="text-center p-8 bg-slate-800 rounded-2xl border border-green-500">
+                    <h2 class="text-2xl font-bold text-green-400 mb-2">Selamat!</h2>
+                    <p class="text-slate-300 mb-6">Sesi Review Say Burger Telah Selesai<br>Silahkan kembali ke Ruang Kerja</p>
+                    <button onclick="location.reload()" class="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-700 transition">Review Kembali</button>
+                </div>
+            `;
+        }
+
+        window.onload = renderLogin;
+    </script>
+</body>
+</html>
