@@ -132,6 +132,122 @@
         @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .shake { animation: shake 0.4s ease-in-out; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+        @keyframes customer-enter {
+            0% { opacity: 0; transform: translateX(48px) scale(0.96); }
+            60% { opacity: 1; transform: translateX(-4px) scale(1.01); }
+            100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes customer-bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        .customer-enter { animation: customer-enter 0.7s ease-out both; }
+        .customer-bob { animation: customer-bob 2.4s ease-in-out infinite; }
+        .customer-frame {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(249, 115, 22, 0.35);
+            background: #0b1220;
+        }
+        .customer-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 18%;
+            display: block;
+            opacity: 0;
+            transition: opacity 0.45s ease;
+        }
+        .customer-frame img.is-loaded {
+            opacity: 1;
+        }
+        .customer-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            z-index: 2;
+            transition: opacity 0.35s ease;
+        }
+        .customer-loading.is-done {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .customer-loading-spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(249,115,22,0.25);
+            border-top-color: #f97316;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .customer-loading-text {
+            font-size: 11px;
+            color: #fdba74;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .speech-bubble {
+            position: absolute;
+            left: 0.75rem;
+            right: 0.75rem;
+            bottom: 0.65rem;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(249, 115, 22, 0.55);
+            border-radius: 0.9rem;
+            padding: 0.65rem 0.8rem 0.75rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+            pointer-events: none;
+            z-index: 3;
+        }
+        .speech-bubble.is-visible {
+            animation: speech-pop 0.45s ease-out both;
+            pointer-events: auto;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 1.4rem;
+            width: 14px;
+            height: 14px;
+            background: rgba(15, 23, 42, 0.92);
+            border-left: 1px solid rgba(249, 115, 22, 0.55);
+            border-top: 1px solid rgba(249, 115, 22, 0.55);
+            transform: rotate(45deg);
+        }
+        .speech-name {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #fdba74;
+            margin-bottom: 0.2rem;
+        }
+        .speech-text {
+            font-size: 11px;
+            line-height: 1.45;
+            color: #e2e8f0;
+            font-style: italic;
+        }
+        @keyframes speech-pop {
+            0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
     </style>
 </head>
 <body class="text-white p-4 flex justify-center items-center min-h-screen">
@@ -230,7 +346,100 @@
             { name: "UFO Burger", layers: ['Bun Bawah', 'Coleslaw', 'Sosis Bratwurst', 'Caramelized Onion', 'Signature Mayo', 'Bun Atas'] }
         ];
 
-        let state = { level: 0, lives: 3, stack: [], hint: null, userData: { name: '', nik: '' }, currentRecipes: [] };
+        // Alur cerita: pelanggan (gambar) diacak + dipasangkan ke resep yang sama.
+        const CUSTOMER_POOL = [
+            { id: 1, name: 'Mas Andi', image: 'assets/pelanggan-1.jpg' },
+            { id: 2, name: 'Mba Rina', image: 'assets/pelanggan-2.png' },
+            { id: 3, name: 'Mas Bima', image: 'assets/pelanggan-3.png' },
+            { id: 4, name: 'Kak Sinta', image: 'assets/pelanggan-4.jpg' },
+            { id: 5, name: 'Mba Lala', image: 'assets/pelanggan-5.png' }
+        ];
+
+        const RECIPE_REQUESTS = {
+            "Beef Cheese Burger": "Tolong Beef Cheese Burger-nya lengkap ya, kejunya jangan sampai ketinggalan!",
+            "Beef Burger": "Saya pesan Beef Burger, sederhana saja tapi susunannya harus pas.",
+            "Chicken Burger": "Chicken Burger satu, jangan lupa coleslaw dan mayo-nya!",
+            "Crispy Chicken Burger": "Mau Crispy Chicken Burger yang renyah, plus cheese ya.",
+            "Chicken Cheese Burger": "Chicken Cheese Burger, keju harus meleleh di atas patty-nya.",
+            "UFO Burger": "UFO Burger spesial! Sosis bratwurst-nya jangan sampai tertukar."
+        };
+
+        function shuffle(list) {
+            const arr = [...list];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function buildRandomOrders() {
+            const recipes = shuffle(ALL_RECIPES).slice(0, 5);
+            const customers = shuffle(CUSTOMER_POOL).slice(0, 5);
+            return recipes.map((recipe, i) => ({
+                recipe,
+                customer: customers[i],
+                orderNo: `A-0${i + 1}`,
+                request: RECIPE_REQUESTS[recipe.name] || `Tolong buatkan ${recipe.name} sesuai SOP.`
+            }));
+        }
+
+        function getCurrentOrder() {
+            return state.currentOrders[state.level];
+        }
+
+        function preloadImage(src) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(src);
+                img.onerror = () => resolve(src);
+                img.src = src;
+            });
+        }
+
+        function preloadOrderImages(orders) {
+            return Promise.all(orders.map(o => preloadImage(o.customer.image)));
+        }
+
+        function revealCustomerScene(freshReveal) {
+            const frame = document.getElementById('customer-scene');
+            if (!frame) return;
+            const img = frame.querySelector('img');
+            const loading = frame.querySelector('.customer-loading');
+            const bubble = frame.querySelector('.speech-bubble');
+            if (!img || !bubble) return;
+
+            const showSpeech = () => {
+                bubble.classList.add('is-visible');
+            };
+
+            const finishImage = () => {
+                img.classList.add('is-loaded');
+                if (loading) loading.classList.add('is-done');
+                if (freshReveal) {
+                    setTimeout(showSpeech, 550);
+                } else {
+                    showSpeech();
+                }
+            };
+
+            if (!freshReveal) {
+                img.classList.add('is-loaded');
+                if (loading) loading.classList.add('is-done');
+                showSpeech();
+                return;
+            }
+
+            if (img.complete && img.naturalWidth > 0) {
+                finishImage();
+            } else {
+                img.addEventListener('load', finishImage, { once: true });
+                img.addEventListener('error', finishImage, { once: true });
+            }
+        }
+
+        let state = { level: 0, lives: 3, stack: [], hint: null, userData: { name: '', nik: '' }, currentOrders: [] };
+
 
         function renderLogin() {
             document.getElementById('view-container').innerHTML = `
@@ -249,16 +458,24 @@
             const name = document.getElementById('input-name').value;
             if(!name) return;
             state.userData = { name: name, nik: document.getElementById('input-nik').value };
-            state.currentRecipes = [...ALL_RECIPES].sort(() => 0.5 - Math.random()).slice(0, 5);
+            state.currentOrders = buildRandomOrders();
+            preloadOrderImages(state.currentOrders);
             renderInstructions();
         }
 
         function renderInstructions() {
             document.getElementById('view-container').innerHTML = `
                 <div class="text-center">
-                    <h2 class="text-xl font-bold text-orange-400 mb-4">Misi Anda</h2>
-                    <p class="text-slate-300 text-sm mb-6">Susun 5 burger sesuai SOP! <br> Anda memiliki 3 Life.</p>
-                    <button onclick="startGame()" class="w-full py-3 bg-green-600 rounded-xl font-bold hover:bg-green-700 transition">Mulai Memasak!</button>
+                    <h2 class="text-xl font-bold text-orange-400 mb-4">Shift Dapur Dimulai</h2>
+                    <p class="text-slate-300 text-sm mb-4 leading-relaxed">
+                        Hari ini Anda bertugas di dapur Say Burger.<br>
+                        Ada <span class="text-orange-300 font-semibold">5 pesanan pelanggan</span> menunggu.
+                    </p>
+                    <p class="text-slate-400 text-xs mb-6 leading-relaxed">
+                        Baca tiket pesanan, lalu susun burger sesuai SOP yang sama.<br>
+                        Anda memiliki 3 Life tiap pesanan.
+                    </p>
+                    <button onclick="startGame()" class="w-full py-3 bg-green-600 rounded-xl font-bold hover:bg-green-700 transition">Terima Pesanan!</button>
                 </div>
             `;
         }
@@ -271,12 +488,32 @@
         }
 
         function renderGame() {
-            const recipe = state.currentRecipes[state.level];
+            const order = getCurrentOrder();
+            const recipe = order.recipe;
+            const freshReveal = state.stack.length === 0 && !state.hint;
             document.getElementById('progress-bar').style.width = (state.level / 5 * 100) + '%';
             document.getElementById('lives').innerText = `Life: ${'❤️'.repeat(state.lives)}`;
             
             document.getElementById('view-container').innerHTML = `
-                <div class="text-center mb-4"><h2 class="text-lg font-bold text-orange-400">${recipe.name}</h2></div>
+                <div id="customer-scene" class="customer-frame mb-3 ${freshReveal ? 'customer-enter' : ''}">
+                    <div class="customer-loading ${freshReveal ? '' : 'is-done'}">
+                        <div class="customer-loading-spinner"></div>
+                        <p class="customer-loading-text">Pelanggan datang...</p>
+                    </div>
+                    <img src="${order.customer.image}" alt="${order.customer.name}" class="customer-bob ${freshReveal ? '' : 'is-loaded'}" decoding="async">
+                    <div class="speech-bubble ${freshReveal ? '' : 'is-visible'}">
+                        <p class="speech-name">${order.customer.name}</p>
+                        <p class="speech-text">"${order.request}"</p>
+                    </div>
+                </div>
+                <div class="mb-4 p-3 rounded-xl border border-orange-500/40 bg-orange-500/10 text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-[10px] uppercase tracking-widest text-orange-300 font-bold">Pesanan ${state.level + 1}/5</p>
+                        <p class="text-[10px] text-slate-400">No. ${order.orderNo}</p>
+                    </div>
+                    <h2 class="text-lg font-bold text-orange-400 leading-tight">${recipe.name}</h2>
+                    <p class="text-xs text-slate-300 mt-1">Pesanan dari <span class="text-white font-semibold">${order.customer.name}</span></p>
+                </div>
                 <div class="layer-container mb-6 bg-slate-950/20 rounded-xl p-4 border border-slate-800">
                     ${state.stack.map(layer => `<div class="layer ${INGREDIENTS[layer].style} pop"></div>`).join('')}
                 </div>
@@ -297,10 +534,11 @@
                         </button>`).join('')}
                 </div>
             `;
+            revealCustomerScene(freshReveal);
         }
 
         function handleInput(layer) {
-            const recipe = state.currentRecipes[state.level];
+            const recipe = getCurrentOrder().recipe;
             const nextCorrect = recipe.layers[state.stack.length];
             
             if (layer === nextCorrect) {
@@ -328,9 +566,9 @@
         function renderGameOver() {
             document.getElementById('view-container').innerHTML = `
                 <div class="text-center p-8 bg-slate-800 rounded-2xl border border-red-500">
-                    <h2 class="text-2xl font-bold text-red-500 mb-4">Gagal!</h2>
-                    <p class="text-slate-300 mb-6">Nyawa habis.</p>
-                    <button onclick="retryLevel()" class="w-full py-3 bg-red-600 rounded-xl font-bold hover:bg-red-700 transition">Coba Lagi Level Ini</button>
+                    <h2 class="text-2xl font-bold text-red-500 mb-4">Pesanan Gagal!</h2>
+                    <p class="text-slate-300 mb-6">Nyawa habis. Pelanggan menunggu—coba susun lagi sesuai SOP.</p>
+                    <button onclick="retryLevel()" class="w-full py-3 bg-red-600 rounded-xl font-bold hover:bg-red-700 transition">Ulangi Pesanan Ini</button>
                 </div>
             `;
         }
@@ -343,11 +581,13 @@
         }
 
         function showWinModal(name) {
+            const order = getCurrentOrder();
             document.getElementById('view-container').innerHTML = `
                 <div class="text-center p-8 bg-slate-800 rounded-2xl border border-green-500">
-                    <h2 class="text-2xl font-bold text-green-400">Mantap!</h2>
-                    <p class="mb-6">${name} berhasil disusun!</p>
-                    <button onclick="nextLevel()" class="w-full py-3 bg-green-600 rounded-xl font-bold hover:bg-green-700 transition">Lanjut</button>
+                    <h2 class="text-2xl font-bold text-green-400">Pesanan Selesai!</h2>
+                    <p class="text-sm text-slate-300 mb-2">${name} untuk <span class="text-white font-semibold">${order.customer.name}</span> siap disajikan.</p>
+                    <p class="text-xs text-slate-500 mb-6">Susunan sesuai SOP ✓</p>
+                    <button onclick="nextLevel()" class="w-full py-3 bg-green-600 rounded-xl font-bold hover:bg-green-700 transition">Pesanan Berikutnya</button>
                 </div>
             `;
         }
@@ -357,15 +597,16 @@
             state.stack = [];
             state.lives = 3;
             state.hint = null;
-            if(state.level < 5) renderGame();
+            if(state.level < state.currentOrders.length) renderGame();
             else renderSummary();
         }
 
         function renderSummary() {
             document.getElementById('view-container').innerHTML = `
                 <div class="text-center p-8 bg-slate-800 rounded-2xl border border-green-500">
-                    <h2 class="text-2xl font-bold text-green-400 mb-2">Selamat!</h2>
-                    <p class="text-slate-300 mb-6 text-sm">Sesi Review Say Burger Telah Selesai<br>Silahkan kembali ke Ruang Kerja</p>
+                    <h2 class="text-2xl font-bold text-green-400 mb-2">Shift Selesai!</h2>
+                    <p class="text-slate-300 mb-2 text-sm">Semua 5 pesanan pelanggan berhasil dilayani.</p>
+                    <p class="text-slate-500 mb-6 text-xs">Sesi Review Say Burger telah selesai.<br>Silahkan kembali ke Ruang Kerja</p>
                     <button onclick="location.reload()" class="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-700 transition">Review Kembali</button>
                 </div>
             `;
